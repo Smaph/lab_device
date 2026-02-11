@@ -77,6 +77,7 @@ protected:
     int outputAmount;
     bool calculated;  // true - аппарат рассчитан, false - не рассчитан
 public:
+    Device() : calculated(false) {}  // Добавить инициализацию calculated = false
     /**
      * @brief Add an input stream to the device.
      * @param s A shared pointer to the input stream.
