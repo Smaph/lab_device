@@ -75,6 +75,7 @@ protected:
     vector<shared_ptr<Stream>> outputs; ///< Output streams produced by the device.
     int inputAmount;
     int outputAmount;
+    bool calculated;  // true - аппарат рассчитан, false - не рассчитан
 public:
     /**
      * @brief Add an input stream to the device.
@@ -97,6 +98,10 @@ public:
      * @brief Update the output streams of the device (to be implemented by derived classes).
      */
     virtual void updateOutputs() = 0;
+
+    // Геттер и сеттер для признака
+    void setCalculated(bool calc) { calculated = calc; }
+    bool isCalculated() const { return calculated; }
 };
 
 class Mixer: public Device
