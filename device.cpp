@@ -433,6 +433,130 @@ void tests() {
     
     cout << "\n========== TESTS COMPLETE ==========\n";
 }
+/**
+ * @file device.cpp
+ * Тесты для проверки обнаружения рецикла
+ * Коммит 4: "test: add recycle detection tests"
+ */
+/**
+ * @brief Тест 1: Обнаружение рецикла при апдейте рассчитанного устройства
+ */
+void testRecycleDetectionOnCalculatedDevice() {
+    cout << "\n=== Test: Recycle Detection on Calculated Device ===\n";
+    streamcounter = 0;
+    
+    try {
+        Reactor dl(false);
+        
+        auto s1 = make_shared<Stream>(++streamcounter);
+        auto s2 = make_shared<Stream>(++streamcounter);
+        
+        s1->setMassFlow(10.0);
+        
+        dl.addInput(s1);
+        dl.addOutput(s2);
+        
+        // Первый апдейт - устройство становится рассчитанным
+        dl.updateOutputs();
+        cout << "Device calculated after first update: " << dl.isCalculated() << endl;
+        
+        // Второй апдейт - должно выбросить исключение о рецикле
+        dl.updateOutputs();
+        
+        cout << "TEST FAILED: No recycle exception thrown" << endl;
+    } catch (const RecycleException& e) {
+        cout << "TEST PASSED: " << e.what() << endl;
+    } catch (const exception& e) {
+        cout << "TEST FAILED: Wrong exception: " << e.what() << endl;
+    }
+}
+
+/**
+ * @brief Тест 2: Рецикл с несколькими устройствами
+ */
+void testRecycleWithMultipleDevices() {
+    cout << "\n=== Test: Recycle with Multiple Devices ===\n";
+    streamcounter = 0;
+    
+    try {
+        // Создаем два реактора
+        Reactor r1(false);
+        Reactor r2(false);
+        
+        auto input = make_shared<Stream>(++streamcounter);
+        auto intermediate = make_shared<Stream>(++streamcounter);
+        auto output = make_shared<Stream>(++streamcounter);
+        
+        input->setMassFlow(20.0);
+        
+        // Связываем устройства: input -> r1 -> intermediate -> r2 -> output
+        r1.addInput(input);
+        r1.addOutput(intermediate);
+        
+        r2.addInput(intermediate);
+        r2.addOutput(output);
+        
+        // Рассчитываем первое устройство
+        r1.updateOutputs();
+        cout << "R1 calculated: " << r1.isCalculated() << endl;
+        cout << "Intermediate flow: " << intermediate->getMassFlow() << endl;
+        
+        // Пытаемся рассчитать второе устройство - должно работать
+        r2.updateOutputs();
+        cout << "R2 calculated: " << r2.isCalculated() << endl;
+        cout << "Output flow: " << output->getMassFlow() << endl;
+        
+        // Пытаемся повторно рассчитать первое устройство - рецикл!
+        r1.updateOutputs();
+        
+        cout << "TEST FAILED: No recycle exception thrown" << endl;
+    } catch (const RecycleException& e) {
+        cout << "TEST PASSED: " << e.what() << endl;
+    }
+}
+
+/**
+ * @brief Тест 3: Рецикл с Mixer
+ */
+void testRecycleWithMixer() {
+    cout << "\n=== Test: Recycle with Mixer ===\n";
+    streamcounter = 0;
+    
+    try {
+        Mixer mixer(2);
+        Reactor reactor(false);
+        
+        auto s1 = make_shared<Stream>(++streamcounter);
+        auto s2 = make_shared<Stream>(++streamcounter);
+        auto s3 = make_shared<Stream>(++streamcounter);
+        auto s4 = make_shared<Stream>(++streamcounter);
+        
+        s1->setMassFlow(10.0);
+        s2->setMassFlow(5.0);
+        
+        mixer.addInput(s1);
+        mixer.addInput(s2);
+        mixer.addOutput(s3);
+        
+        reactor.addInput(s3);
+        reactor.addOutput(s4);
+        
+        // Рассчитываем mixer
+        mixer.updateOutputs();
+        cout << "Mixer calculated: " << mixer.isCalculated() << endl;
+        
+        // Рассчитываем reactor
+        reactor.updateOutputs();
+        cout << "Reactor calculated: " << reactor.isCalculated() << endl;
+        
+        // Пытаемся повторно рассчитать mixer - рецикл!
+        mixer.updateOutputs();
+        
+        cout << "TEST FAILED: No recycle exception thrown" << endl;
+    } catch (const RecycleException& e) {
+        cout << "TEST PASSED: " << e.what() << endl;
+    }
+}
 
 /**
  * @brief The entry point of the program.
