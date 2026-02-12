@@ -148,7 +148,21 @@ public:
     /**
      * @brief Update the output streams of the device (to be implemented by derived classes).
      */
-    virtual void updateOutputs() = 0;
+    virtual void updateOutputs() {
+        checkForRecycle();  // Проверка перед обновлением
+    }
+
+    /**
+     * @brief Проверка на рецикл перед обновлением выходов
+     * @throws RecycleException если обнаружен рецикл
+     */
+    virtual void checkForRecycle() {
+        for (const auto& output : outputs) {
+            if (isCalculated()) {
+                throw RecycleException(getDeviceType(), output->getName());
+            }
+        }
+    }
 };
 
 class Mixer : public Device
@@ -180,6 +194,7 @@ public:
     }
     
     void updateOutputs() override {
+        checkForRecycle();  
         double sum_mass_flow = 0;
         for (const auto& input_stream : inputs) {
             sum_mass_flow += input_stream->getMassFlow();
@@ -194,6 +209,8 @@ public:
         for (auto& output_stream : outputs) {
             output_stream->setMassFlow(output_mass);
         }
+
+        setCalculated(true);  // После успешного обновления помечаем как рассчитанный
     }
 };
 
@@ -287,6 +304,7 @@ public:
     string getDeviceType() const override { return "Reactor"; }
     
     void updateOutputs() override {
+        checkForRecycle();
         if (inputs.empty()) {
             throw string("No input stream");
         }
@@ -299,6 +317,25 @@ public:
             double outputLocal = inputMass / outputAmount;
             outputs.at(i)->setMassFlow(outputLocal);
         }
+        setCalculated(true);
+    }
+};
+
+/**
+ * @file device.cpp
+ * Добавление проверки рецикла при обновлении выходов
+ * Коммит 3: "feat: add recycle detection in updateOutputs"
+ */
+class RecycleException : public exception {
+private:
+    string message;
+public:
+    explicit RecycleException(const string& deviceType, const string& streamName) {
+        message = "RECYCLE DETECTED: " + deviceType + " has calculated output stream " + streamName;
+    }
+    
+    const char* what() const noexcept override {
+        return message.c_str();
     }
 };
 
