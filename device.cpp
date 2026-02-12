@@ -431,6 +431,12 @@ void tests() {
     shouldCorrectOutputs();
     shouldCorrectInputs();
     
+     // НОВЫЕ тесты на рецикл
+    cout << "\n--- RECYCLE DETECTION TESTS ---\n";
+    testRecycleDetectionOnCalculatedDevice();
+    testRecycleWithMultipleDevices();
+    testRecycleWithMixer();
+
     cout << "\n========== TESTS COMPLETE ==========\n";
 }
 /**
