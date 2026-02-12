@@ -10,6 +10,7 @@
 #include <memory>
 #include <cmath>
 #include <set>
+#include <exception>
 
 using namespace std;
 
@@ -18,6 +19,35 @@ int streamcounter = 0; ///< Global variable to keep track of stream creation.
 const int MIXER_OUTPUTS = 1;
 const float POSSIBLE_ERROR = 0.01;
 
+// ============ ПРЕДВАРИТЕЛЬНЫЕ ОБЪЯВЛЕНИЯ ============
+class Stream;
+class Device;
+class Mixer;
+class Reactor;
+class RecycleException;
+void testRecycleDetectionOnCalculatedDevice();
+void testRecycleWithMultipleDevices();
+void testRecycleWithMixer();
+
+// ============ КЛАСС RecycleException (ПЕРЕНЕСЕН ВВЕРХ) ============
+/**
+ * @class RecycleException
+ * @brief Исключение для обнаружения рецикла
+ */
+class RecycleException : public exception {
+private:
+    string message;
+public:
+    explicit RecycleException(const string& deviceType, const string& streamName) {
+        message = "RECYCLE DETECTED: " + deviceType + " has calculated output stream " + streamName;
+    }
+    
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+};
+
+// ============ БАЗОВЫЙ КЛАСС CalculatedDevice ============
 /**
  * @class CalculatedDevice
  * @brief Базовый класс для всех устройств с признаком "рассчитан/не рассчитан"
@@ -48,6 +78,7 @@ public:
     virtual string getDeviceType() const = 0;
 };
 
+// ============ КЛАСС Stream ============
 /**
  * @class Stream
  * @brief Represents a chemical stream with a name and mass flow.
@@ -97,6 +128,7 @@ public:
     void print() { cout << "Stream " << getName() << " flow = " << getMassFlow() << endl; }
 };
 
+// ============ КЛАСС Device ============
 /**
  * @class Device
  * @brief Represents a device that manipulates chemical streams.
@@ -137,7 +169,7 @@ public:
         outputs.push_back(s);
     }
 
-    // Геттеры для доступа к protected полям (ИСПРАВЛЕНИЕ ОШИБКИ!)
+    // Геттеры для доступа к protected полям
     const vector<shared_ptr<Stream>>& getInputs() const { return inputs; }
     const vector<shared_ptr<Stream>>& getOutputs() const { return outputs; }
     
@@ -165,6 +197,7 @@ public:
     }
 };
 
+// ============ КЛАСС Mixer ============
 class Mixer : public Device
 {
 private:
@@ -214,6 +247,35 @@ public:
     }
 };
 
+// ============ КЛАСС Reactor ============
+class Reactor : public Device {
+public:
+    Reactor(bool isDoubleReactor) : Device() {
+        inputAmount = 1;
+        outputAmount = isDoubleReactor ? 2 : 1;
+    }
+
+    string getDeviceType() const override { return "Reactor"; }
+    
+    void updateOutputs() override {
+        checkForRecycle();
+        if (inputs.empty()) {
+            throw string("No input stream");
+        }
+        if (outputs.size() != outputAmount) {
+            throw string("Wrong number of outputs");
+        }
+        
+        double inputMass = inputs.at(0)->getMassFlow();
+        for (int i = 0; i < outputAmount; i++) {
+            double outputLocal = inputMass / outputAmount;
+            outputs.at(i)->setMassFlow(outputLocal);
+        }
+        setCalculated(true);
+    }
+};
+
+// ============ ТЕСТЫ ДЛЯ MIXER ============
 void shouldSetOutputsCorrectlyWithOneOutput() {
     streamcounter = 0;
     Mixer d1(2);
@@ -294,51 +356,7 @@ void shouldCorrectInputs() {
     cout << "Test 3 failed" << endl;
 }
 
-class Reactor : public Device {
-public:
-    Reactor(bool isDoubleReactor) : Device() {
-        inputAmount = 1;
-        outputAmount = isDoubleReactor ? 2 : 1;
-    }
-
-    string getDeviceType() const override { return "Reactor"; }
-    
-    void updateOutputs() override {
-        checkForRecycle();
-        if (inputs.empty()) {
-            throw string("No input stream");
-        }
-        if (outputs.size() != outputAmount) {
-            throw string("Wrong number of outputs");
-        }
-        
-        double inputMass = inputs.at(0)->getMassFlow();
-        for (int i = 0; i < outputAmount; i++) {
-            double outputLocal = inputMass / outputAmount;
-            outputs.at(i)->setMassFlow(outputLocal);
-        }
-        setCalculated(true);
-    }
-};
-
-/**
- * @file device.cpp
- * Добавление проверки рецикла при обновлении выходов
- * Коммит 3: "feat: add recycle detection in updateOutputs"
- */
-class RecycleException : public exception {
-private:
-    string message;
-public:
-    explicit RecycleException(const string& deviceType, const string& streamName) {
-        message = "RECYCLE DETECTED: " + deviceType + " has calculated output stream " + streamName;
-    }
-    
-    const char* what() const noexcept override {
-        return message.c_str();
-    }
-};
-
+// ============ ТЕСТЫ ДЛЯ REACTOR ============
 void testTooManyOutputStreams() {
     streamcounter = 0;
     
@@ -371,11 +389,11 @@ void testTooManyInputStreams() {
     Reactor dl(false);
     
     auto s1 = make_shared<Stream>(++streamcounter);
-    auto s2 = make_shared<Stream>(++streamcounter);  // ИСПРАВЛЕНО: s2 объявлен!
+    auto s2 = make_shared<Stream>(++streamcounter);
     auto s3 = make_shared<Stream>(++streamcounter);
     
     s1->setMassFlow(10.0);
-    s2->setMassFlow(5.0);  // ТЕПЕРЬ РАБОТАЕТ
+    s2->setMassFlow(5.0);
     
     dl.addInput(s1);
     
@@ -408,7 +426,6 @@ void testInputEqualOutput() {
     
     dl.updateOutputs();
     
-    // ИСПРАВЛЕНО: используем геттеры и -> вместо .
     double sumOutputs = dl.getOutputs().at(0)->getMassFlow() + 
                         dl.getOutputs().at(1)->getMassFlow();
     double inputMass = dl.getInputs().at(0)->getMassFlow();
@@ -420,30 +437,7 @@ void testInputEqualOutput() {
     }
 }
 
-void tests() {
-    cout << "========== RUNNING TESTS ==========\n\n";
-    
-    testInputEqualOutput();
-    testTooManyOutputStreams();
-    testTooManyInputStreams();
-    
-    shouldSetOutputsCorrectlyWithOneOutput();
-    shouldCorrectOutputs();
-    shouldCorrectInputs();
-    
-     // НОВЫЕ тесты на рецикл
-    cout << "\n--- RECYCLE DETECTION TESTS ---\n";
-    testRecycleDetectionOnCalculatedDevice();
-    testRecycleWithMultipleDevices();
-    testRecycleWithMixer();
-
-    cout << "\n========== TESTS COMPLETE ==========\n";
-}
-/**
- * @file device.cpp
- * Тесты для проверки обнаружения рецикла
- * Коммит 4: "test: add recycle detection tests"
- */
+// ============ ТЕСТЫ НА РЕЦИКЛ ============
 /**
  * @brief Тест 1: Обнаружение рецикла при апдейте рассчитанного устройства
  */
@@ -507,7 +501,7 @@ void testRecycleWithMultipleDevices() {
         cout << "R1 calculated: " << r1.isCalculated() << endl;
         cout << "Intermediate flow: " << intermediate->getMassFlow() << endl;
         
-        // Пытаемся рассчитать второе устройство - должно работать
+        // Рассчитываем второе устройство - должно работать
         r2.updateOutputs();
         cout << "R2 calculated: " << r2.isCalculated() << endl;
         cout << "Output flow: " << output->getMassFlow() << endl;
@@ -564,6 +558,28 @@ void testRecycleWithMixer() {
     }
 }
 
+// ============ ГЛАВНАЯ ФУНКЦИЯ ТЕСТИРОВАНИЯ ============
+void tests() {
+    cout << "========== RUNNING TESTS ==========\n\n";
+    
+    testInputEqualOutput();
+    testTooManyOutputStreams();
+    testTooManyInputStreams();
+    
+    shouldSetOutputsCorrectlyWithOneOutput();
+    shouldCorrectOutputs();
+    shouldCorrectInputs();
+    
+    // НОВЫЕ тесты на рецикл
+    cout << "\n--- RECYCLE DETECTION TESTS ---\n";
+    testRecycleDetectionOnCalculatedDevice();
+    testRecycleWithMultipleDevices();
+    testRecycleWithMixer();
+
+    cout << "\n========== TESTS COMPLETE ==========\n";
+}
+
+// ============ ТОЧКА ВХОДА ============
 /**
  * @brief The entry point of the program.
  * @return 0 on successful execution.
