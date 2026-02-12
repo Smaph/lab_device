@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <cmath>
+#include <set>
 
 using namespace std;
 
@@ -16,6 +17,36 @@ int streamcounter = 0; ///< Global variable to keep track of stream creation.
 
 const int MIXER_OUTPUTS = 1;
 const float POSSIBLE_ERROR = 0.01;
+
+/**
+ * @class CalculatedDevice
+ * @brief Базовый класс для всех устройств с признаком "рассчитан/не рассчитан"
+ */
+class CalculatedDevice {
+protected:
+    bool calculated = false;  ///< Признак: true - аппарат рассчитан, false - не рассчитан
+    
+public:
+    CalculatedDevice() = default;
+    virtual ~CalculatedDevice() = default;
+    
+    /**
+     * @brief Установить признак "рассчитан"
+     * @param calc true - рассчитан, false - не рассчитан
+     */
+    virtual void setCalculated(bool calc) { calculated = calc; }
+    
+    /**
+     * @brief Получить признак "рассчитан"
+     * @return true - рассчитан, false - не рассчитан
+     */
+    virtual bool isCalculated() const { return calculated; }
+    
+    /**
+     * @brief Виртуальный метод для получения имени типа устройства
+     */
+    virtual string getDeviceType() const = 0;
+};
 
 /**
  * @class Stream
