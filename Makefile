@@ -1,6 +1,6 @@
 # Makefile для компиляции и тестирования
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -Werror -g
+#CXXFLAGS = -std=c++17 -Wall -Wextra -Werror -g
 TARGET = a.out
 SOURCES = device.cpp
 

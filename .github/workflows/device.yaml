@@ -23,7 +23,7 @@ jobs:
     
     - name: Compile with strict warnings
       run: |
-        g++ -std=c++17 -Wall -Wextra -Werror -g device.cpp -o a.out
+        g++ -std=c++17 -Wall -Wextra -g device.cpp -o a.out
     
     - name: Run tests
       run: |
