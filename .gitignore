@@ -1,0 +1,35 @@
+# Compiled output
+a.out
+*.exe
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# VS Code
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Coverage files
+*.gcda
+*.gcno
+*.gcov
+coverage.html
+coverage.xml
+
+# Valgrind
+valgrind-out.txt
+*.supp
+
+# Make
+Makefile.bak
