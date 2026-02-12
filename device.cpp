@@ -101,18 +101,19 @@ public:
  * @class Device
  * @brief Represents a device that manipulates chemical streams.
  */
-class Device
+class Device : public CalculatedDevice
 {
 protected:
     vector<shared_ptr<Stream>> inputs;  ///< Input streams connected to the device.
     vector<shared_ptr<Stream>> outputs; ///< Output streams produced by the device.
     int inputAmount = 0;
     int outputAmount = 0;
-    bool calculated;  // true - аппарат рассчитан, false - не рассчитан
     
 public:
-    Device() : calculated(false) {}
+    Device() : CalculatedDevice() {} 
     virtual ~Device() = default;
+
+    string getDeviceType() const override { return "Device"; }
     
     /**
      * @brief Add an input stream to the device.
@@ -148,9 +149,6 @@ public:
      * @brief Update the output streams of the device (to be implemented by derived classes).
      */
     virtual void updateOutputs() = 0;
-
-    void setCalculated(bool calc) { calculated = calc; }
-    bool isCalculated() const { return calculated; }
 };
 
 class Mixer : public Device
@@ -164,6 +162,8 @@ public:
         inputAmount = inputs_count;
         outputAmount = MIXER_OUTPUTS;
     }
+    
+    string getDeviceType() const override { return "Mixer"; }
     
     void addInput(shared_ptr<Stream> s) override {
         if (inputs.size() >= _inputs_count) {
@@ -283,6 +283,8 @@ public:
         inputAmount = 1;
         outputAmount = isDoubleReactor ? 2 : 1;
     }
+
+    string getDeviceType() const override { return "Reactor"; }
     
     void updateOutputs() override {
         if (inputs.empty()) {
